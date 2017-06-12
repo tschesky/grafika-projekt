@@ -27,10 +27,7 @@
          <script src="three.min.js"></script> 
          <script src="Detector.js"></script> 
          <script src="OrbitControls.js"></script>
-         <script> 
-            var particles = [];
-            var movementPaths = [];
-         </script>
+         
      </head> 
      <body>
          <!-- This is the DIV element which will contain the WebGL canvas. To be identifiable lateron, the id 'WebGLCanvas' is applied to it. --> 
@@ -50,7 +47,7 @@
            var context;
             
             const SNOW_FALL_SPEED = 0.05;
-
+            var movementPaths = [];
 
            initializeScene(); 
            animateScene(); 
@@ -113,12 +110,20 @@
 
                // -- MATERIAL -- 
                var texture = loader.load('terrain.jpg');
+
+               var bmap =  THREE.ImageUtils.loadTexture("terrain-map.png", {}, function(){});
+               var smap =  THREE.ImageUtils.loadTexture("terrain.jpg", {}, function(){});
+
                this.floorMaterial = new THREE.MeshPhongMaterial({
-                  map: texture,
+                  map: smap,
+                  bumpMap: smap,
                   shading: THREE.SmoothShading,
+                  bumpScale: 0.1,
+                  shininess  :  20,
                   ambient: 0x404040
 
                });
+
 
                var snowTexture = new THREE.Texture(canvas);
                
@@ -200,6 +205,7 @@
                 particles.vertices.push(particle);
                 var gray = Math.random() * 0.5 + 0.5;
                 particles.colors.push(new THREE.Color(gray, gray, gray));
+                movementPaths.push(Math.random()/100 * plusMinusRandomizer());
               }
               this.snowflakes = new THREE.ParticleSystem(particles, pMaterial);
               this.snowflakes.sortParticles = true;
@@ -243,6 +249,7 @@
               for (var i = 0; i < this.snowflakes.geometry.vertices.length; i++) {
                 var snowflake = this.snowflakes.geometry.vertices[i];
                 snowflake.y -= Math.random() * SNOW_FALL_SPEED;
+                snowflake.x = snowflake.x + movementPaths[i];
                 // TODO: implement better wind/gravity model, rotate/scale snowflakes
                 var coordinates = globalCoordsToTextureCoords(snowflake);
                 if (snowflake.y <= 0) {
