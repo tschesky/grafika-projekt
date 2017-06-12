@@ -30,9 +30,13 @@
          
      </head> 
      <body>
+         
+         <div id = "controls">
+            <input type="range" min="0" max="10" value="0" step="0.1" id="slider" orient="horizontal" style="position:absolute; top: 10px;">
+            <input type="range" min="0" max="10" value="0" step="0.1" id="slider2" orient="horizontal" style="position:absolute; top: 40px;">
+         </div>
          <!-- This is the DIV element which will contain the WebGL canvas. To be identifiable lateron, the id 'WebGLCanvas' is applied to it. --> 
          <div id="WebGLCanvas"> </div> 
-  
          <!-- This JavaScript block encloses the Three.js commands --> 
          <script> 
            var scene; 
@@ -45,9 +49,11 @@
            var snowMaterial;
            var snow;
            var context;
-            
+           var dirLight;
             var movementPaths = [];
-
+           var SNOW_FALL_SPEED = 2;
+           var PARTICLE_NUMBER = 2000;
+           var LIGHT_INTESITY;
            initializeScene(); 
            animateScene(); 
 
@@ -84,7 +90,9 @@
                // object to it 
                document.getElementById("WebGLCanvas").appendChild(renderer.domElement); 
 
-
+               var slider = document.getElementById("slider");
+               slider.addEventListener("input", changeSnowSpeed);
+               SNOW_FALL_SPEED = slider.value / 5;
 
                // Create the scene, in which all objects are stored (e. g. camera, lights, 
                // geometries, ...) 
@@ -93,6 +101,10 @@
                // Add lights
                addLights();
 
+               var slider2 = document.getElementById("slider2");
+               slider2.addEventListener("input", changeLightIntensity);
+               LIGHT_INTESITY = slider2.value / 2;
+               dirLight.intensity = LIGHT_INTESITY;
 
                var loader = new THREE.TextureLoader();
 
@@ -196,7 +208,7 @@
                 size: 0.1
               });
 
-              for (var p = 0; p < 2000; p++) {
+              for (var p = 0; p < PARTICLE_NUMBER; p++) {
                 var pX = (Math.random() - 0.5) * 10;
                 var pY = Math.random() * 10;
                 var pZ = (Math.random() - 0.5) * 10;
@@ -225,8 +237,19 @@
 
            } 
 
+           function changeSnowSpeed(e){
+              var target = (e.target) ? e.target : e.srcElement;
+              SNOW_FALL_SPEED = (target.value / 5);
+            }
+
+            function changeLightIntensity(e){
+              var target = (e.target) ? e.target : e.srcElement;
+              LIGHT_INTESITY = target.value / 2;
+              dirLight.intensity = LIGHT_INTESITY;
+            }
+
            function addLights() {
-              var dirLight = new THREE.DirectionalLight(0xffffff, 1);
+              this.dirLight = new THREE.DirectionalLight(0xffffff, 1);
               dirLight.position.set(100, 100, 50);
               scene.add(dirLight);
           }
@@ -241,16 +264,21 @@
             } 
 
             function updateParticles(){
+              if(this.snowflakes.geometry.length < PARTICLE_NUMBER){
+
+              }
               for (var i = 0; i < this.snowflakes.geometry.vertices.length; i++) {
-                var snowflake = this.snowflakes.geometry.vertices[i];
-                snowflake.y -= Math.random() * SNOW_FALL_SPEED;
-                snowflake.x = snowflake.x + movementPaths[i];
-                // TODO: implement better wind/gravity model, rotate/scale snowflakes
-                var coordinates = globalCoordsToTextureCoords(snowflake);
-                if (snowflake.y <= 0) {
-                  this.context.fillStyle = 'rgba(256, 256, 256, 1)';
-                  this.context.fillRect(coordinates.x + Math.random() - 0.5, coordinates.y + Math.random() - 0.5, 0.5, 0.5);
-                  snowflake.set( (Math.random() - 0.5) * 10 , 10 , (Math.random() - 0.5) * 10);
+                if(SNOW_FALL_SPEED != 0){
+                  var snowflake = this.snowflakes.geometry.vertices[i];
+                  snowflake.y -= Math.random() * SNOW_FALL_SPEED;
+                  snowflake.x = snowflake.x + movementPaths[i];
+                  // TODO: implement better wind/gravity model, rotate/scale snowflakes
+                  var coordinates = globalCoordsToTextureCoords(snowflake);
+                  if (snowflake.y <= 0) {
+                    this.context.fillStyle = 'rgba(256, 256, 256, 1)';
+                    this.context.fillRect(coordinates.x + Math.random() - 0.5, coordinates.y + Math.random() - 0.5, 0.5, 0.5);
+                    snowflake.set( (Math.random() - 0.5) * 10 , 10 , (Math.random() - 0.5) * 10);
+                  }
                 }
               }
               this.snowflakes.geometry.verticesNeedUpdate = true;
