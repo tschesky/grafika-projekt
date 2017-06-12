@@ -48,6 +48,8 @@
            var snowMaterial;
            var snow;
            var context;
+            
+            const SNOW_FALL_SPEED = 0.05;
 
 
            initializeScene(); 
@@ -182,7 +184,7 @@
 
               // Particles
               var particles = new THREE.Geometry();
-              var pMaterial = new THREE.PointCloudMaterial({
+              var pMaterial = new THREE.ParticleBasicMaterial({
                 transparent: true,
                 vertexColors: true,
                 depthTest: false,
@@ -199,7 +201,7 @@
                 var gray = Math.random() * 0.5 + 0.5;
                 particles.colors.push(new THREE.Color(gray, gray, gray));
               }
-              this.snowflakes = new THREE.PointCloud(particles, pMaterial);
+              this.snowflakes = new THREE.ParticleSystem(particles, pMaterial);
               this.snowflakes.sortParticles = true;
               this.scene.add(this.snowflakes);
 
@@ -232,24 +234,25 @@
             * Animate the scene and call rendering. 
             */ 
             function animateScene(){ 
-              requestAnimationFrame(animateScene); 
               updateParticles();
               renderScene(); 
+              requestAnimationFrame(animateScene);
             } 
 
             function updateParticles(){
               for (var i = 0; i < this.snowflakes.geometry.vertices.length; i++) {
                 var snowflake = this.snowflakes.geometry.vertices[i];
-                snowflake.y -= Math.random() / 10;
+                snowflake.y -= Math.random() * SNOW_FALL_SPEED;
                 // TODO: implement better wind/gravity model, rotate/scale snowflakes
                 var coordinates = globalCoordsToTextureCoords(snowflake);
-                if (snowflake.y < 0) {
-                  this.context.fillStyle = 'rgba(192, 192, 192, 1)';
+                if (snowflake.y <= 0) {
+                  this.context.fillStyle = 'rgba(256, 256, 256, 1)';
                   this.context.fillRect(coordinates.x + Math.random() - 0.5, coordinates.y + Math.random() - 0.5, 0.5, 0.5);
                   snowflake.set( (Math.random() - 0.5) * 10 , 10 , (Math.random() - 0.5) * 10);
                 }
               }
               this.snowflakes.geometry.verticesNeedUpdate = true;
+              this.snowflakes.geometry.__dirtyVertices = true;
               this.snowMaterial.map.needsUpdate = true;
             }
 
