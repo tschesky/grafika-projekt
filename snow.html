@@ -38,33 +38,20 @@
   
          <!-- This JavaScript block encloses the Three.js commands --> 
          <script> 
-           // Global scene object 
            var scene; 
-
-           // Global camera object 
            var camera; 
-
-           // Global mesh object of the pyramid 
            var pyramidMesh; 
-
-           // Global mesh object of the cube 
            var cubeMesh; 
-
+           var snowflakes;
            var floorMaterial;
            var floorGeometry;
            var snowMaterial;
            var snow;
            var context;
 
-           // Initialize the scene 
+
            initializeScene(); 
-
-           // Animate the scene 
            animateScene(); 
-
-           /** 
-            * Initialze the scene. 
-            */ 
 
             function plusMinusRandomizer() {
               var rand = Math.random();
@@ -77,13 +64,6 @@
             }
 
            function initializeScene(){ 
-               // Check whether the browser supports WebGL. If so, instantiate the hardware accelerated 
-               // WebGL renderer. For antialiasing, we have to enable it. The canvas renderer uses 
-               // antialiasing by default. 
-               // The approach of multiplse renderers is quite nice, because your scene can also be 
-               // viewed in browsers, which don't support WebGL. The limitations of the canvas renderer 
-               // in contrast to the WebGL renderer will be explained in the tutorials, when there is a 
-               // difference. 
                if(Detector.webgl){ 
                    renderer = new THREE.WebGLRenderer({antialias:true}); 
 
@@ -120,7 +100,7 @@
 
                // Canvas
                var canvas = document.createElement('canvas');
-               canvas.width = canvas.height = 10;
+               canvas.width = canvas.height = 8;
                this.context = canvas.getContext('2d');
 
                // -- GEOMETRY --
@@ -199,7 +179,30 @@
               scene.add(skybox)
               });
 
-               // SKYBOX
+
+              // Particles
+              var particles = new THREE.Geometry();
+              var pMaterial = new THREE.PointCloudMaterial({
+                transparent: true,
+                vertexColors: true,
+                depthTest: false,
+                map: THREE.ImageUtils.loadTexture('snowflake.png'),
+                size: 0.1
+              });
+
+              for (var p = 0; p < 2000; p++) {
+                var pX = (Math.random() - 0.5) * 10;
+                var pY = Math.random() * 10;
+                var pZ = (Math.random() - 0.5) * 10;
+                var particle = new THREE.Vector3(pX, pY, pZ);
+                particles.vertices.push(particle);
+                var gray = Math.random() * 0.5 + 0.5;
+                particles.colors.push(new THREE.Color(gray, gray, gray));
+              }
+              this.snowflakes = new THREE.PointCloud(particles, pMaterial);
+              this.snowflakes.sortParticles = true;
+              this.scene.add(this.snowflakes);
+
 
               camera = new THREE.PerspectiveCamera(45, canvasWidth / canvasHeight, 1, 100); 
               camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, 1000 );
@@ -217,39 +220,6 @@
                scene.add(camera); 
               //-----------------------------------------------------------------------------------------------------//
 
-               
-               
-        
-               for (var i = 0; i < 1000; i++) {
-
-                    var sphereGeometry = new THREE.SphereGeometry(0.01, 0.01, 0.01); 
-
-                     // Applying different materials to the faces is a more difficult than applying one 
-                     // material to the whole geometry. We start with creating an array of 
-                     // THREE.MeshBasicMaterial. 
-
-                     // Define six colored materials 
-                     
-
-                     // Create a MeshFaceMaterial, which allows the cube to have different materials on 
-                     // each face 
-
-                     // Create a mesh and insert the geometry and the material. Translate the whole mesh 
-                     // by 1.5 on the x axis and by 4 on the z axis and add the mesh to the scene. 
-                     sphereMesh = new THREE.Mesh(sphereGeometry, new THREE.MeshBasicMaterial({color:0xFFFFFF})); 
-                     sphereMesh.position.x = Math.random() * 5 * plusMinusRandomizer();
-                     sphereMesh.position.y = Math.random() * 5 * plusMinusRandomizer();
-                     sphereMesh.position.z = Math.random() * 5 * plusMinusRandomizer();
-
-                     particles.push(sphereMesh);
-                     movementPaths.push(Math.random()/100 * plusMinusRandomizer());
-                     scene.add(sphereMesh); 
-                    
-               }
-
-
-               
-
            } 
 
            function addLights() {
@@ -261,52 +231,37 @@
            /** 
             * Animate the scene and call rendering. 
             */ 
-           function animateScene(){ 
-               // Increase the y rotation of the triangle 
-               // pyramidMesh.rotation.y += 0.1; 
+            function animateScene(){ 
+              requestAnimationFrame(animateScene); 
+              updateParticles();
+              renderScene(); 
+            } 
 
-               // Decrease the rotation of the cube 
-
-
-               for(var i = 0; i<particles.length; i++) {
-
-                    if (particles[i].position.y > 0) {
-                      particles[i].position.y = particles[i].position.y - 0.03
-                      if (particles[i].position.x > -6 && particles[i].position.x < 6) {
-                        particles[i].position.x = particles[i].position.x + movementPaths[i];
-                      } else {
-                        particles[i].position.x = Math.random() * 5 * plusMinusRandomizer();
-                      }
-                    } else if(particles[i].position.y < 0){
-                      this.context.fillStyle = 'rgba(192, 192, 192, 1)';
-                      this.context.fillRect(particles[i].position.x + Math.random() - 0.5, particles[i].position.y + Math.random() - 0.5, 0.5, 0.5);
-
-                      particles[i].position.y = Math.random() * 2 + 6;
-                      particles[i].position.x = Math.random() * 6 * plusMinusRandomizer();
-
-                      this.snowMaterial.needsUpdate = true;
-                    }
-                    
-                    // particle.updatePhysics(); 
-                            
+            function updateParticles(){
+              for (var i = 0; i < this.snowflakes.geometry.vertices.length; i++) {
+                var snowflake = this.snowflakes.geometry.vertices[i];
+                snowflake.y -= Math.random() / 10;
+                // TODO: implement better wind/gravity model, rotate/scale snowflakes
+                var coordinates = globalCoordsToTextureCoords(snowflake);
+                if (snowflake.y < 0) {
+                  this.context.fillStyle = 'rgba(192, 192, 192, 1)';
+                  this.context.fillRect(coordinates.x + Math.random() - 0.5, coordinates.y + Math.random() - 0.5, 0.5, 0.5);
+                  snowflake.set( (Math.random() - 0.5) * 10 , 10 , (Math.random() - 0.5) * 10);
                 }
+              }
+              this.snowflakes.geometry.verticesNeedUpdate = true;
+              this.snowMaterial.map.needsUpdate = true;
+            }
 
-               // Define the function, which is called by the browser supported timer loop. If the 
-               // browser tab is not visible, the animation is paused. So 'animateScene()' is called 
-               // in a browser controlled loop. 
-               requestAnimationFrame(animateScene); 
+            function globalCoordsToTextureCoords(vector) {
+              var px = Math.floor(((vector.x + 0.5 * 10) / 10) * 256);
+              var py = Math.floor(((vector.z + 0.5 * 10) / 10) * 256);
+              return { x: px, y: py };
+            }
 
-
-               // Map the 3D scene down to the 2D screen (render the frame) 
-               renderScene(); 
-           } 
-
-           /** 
-            * Render the scene. Map the 3D world to the 2D screen.
-            */ 
-           function renderScene(){ 
+            function renderScene(){ 
                renderer.render(scene, camera); 
-           } 
+            } 
        </script> 
      </body> 
 </html>
