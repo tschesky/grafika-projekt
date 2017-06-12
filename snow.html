@@ -50,6 +50,12 @@
            // Global mesh object of the cube 
            var cubeMesh; 
 
+           var floorMaterial;
+           var floorGeometry;
+           var snowMaterial;
+           var snow;
+           var context;
+
            // Initialize the scene 
            initializeScene(); 
 
@@ -109,7 +115,72 @@
                // Add lights
                addLights();
 
+
+               var loader = new THREE.TextureLoader();
+
+               // Canvas
+               var canvas = document.createElement('canvas');
+               canvas.width = canvas.height = 10;
+               this.context = canvas.getContext('2d');
+
+               // -- GEOMETRY --
+
+               this.floorGeometry = new THREE.PlaneGeometry( 10, 10 , 256, 256);
+               this.floorGeometry.computeFaceNormals();
+               this.floorGeometry.computeVertexNormals();
+
+               // -- MATERIAL -- 
+               var texture = loader.load('terrain.jpg');
+               this.floorMaterial = new THREE.MeshPhongMaterial({
+                  map: texture,
+                  shading: THREE.SmoothShading,
+                  ambient: 0x404040
+
+               });
+
+               var snowTexture = new THREE.Texture(canvas);
+               
+               this.snowMaterial = new THREE.MeshPhongMaterial({
+                  map: snowTexture,
+                  // bumpMap: loader.load('snow-bump.jpg'),
+                  // bumpScale: 0.1,
+                  shading: THREE.SmoothShading,
+                  transparent: true
+               });
+
+               snowMaterial.needsUpdate = true;
+               
+               // -- MESH --
+               var floor = new THREE.Mesh( floorGeometry, floorMaterial );
+               floor.rotation.x = -Math.PI / 2;
+               floor.castShadow = true;
+               floor.receiveShadow = true;
+               scene.add( floor );
+               
+               var snow = new THREE.Mesh(floorGeometry, this.snowMaterial);
+               snow.rotation.x = -Math.PI / 2;
+               snow.castShadow = true;
+               snow.receiveShadow = true;
+               scene.add(snow);
+               this.snow = snow;
+
                // SKYBOX
+               /*
+               TODO: change loading to CubeTextureLoader
+               var urlPrefix = "skybox/";
+               var loader = new THREE.CubeTextureLoader();
+               var urls = [ urlPrefix + "xpos.png", urlPrefix + "xneg.png", urlPrefix + "ypos.png", urlPrefix + "yneg.png",urlPrefix + "zpos.png", urlPrefix + "zneg.png" ];
+               var textureCube = loader.load(urls);
+               var skyMaterial= new THREE.MeshBasicMaterial( {
+                    color: 0xffffff,
+                    envMap: textureCube,
+                    side: THREE.BackSide
+                });
+                var skyGeometry = new THREE.BoxGeometry(100, 100, 100);
+                var skyMesh = new THREE.Mesh(skyGeometry, skyMaterial);
+                scene.add(skyMesh);
+                */
+
                var urlPrefix = "skybox/";
                var urls = [ urlPrefix + "xpos.png", urlPrefix + "xneg.png", urlPrefix + "ypos.png", urlPrefix + "yneg.png",urlPrefix + "zpos.png", urlPrefix + "zneg.png" ];
                var textureCube = THREE.ImageUtils.loadTextureCube( urls , undefined, function () {
@@ -135,7 +206,7 @@
               camera.position.z = 500;
 
               controls = new THREE.OrbitControls( camera, renderer.domElement );
-              controls.addEventListener( 'change', renderer ); // remove when using animation loop
+              controls.addEventListener( 'change', renderScene ); // remove when using animation loop
               // enable animation loop when using damping or autorotation
               //controls.enableDamping = true;
               //controls.dampingFactor = 0.25;
@@ -146,20 +217,10 @@
                scene.add(camera); 
               //-----------------------------------------------------------------------------------------------------//
 
-               var floorGeometry = new THREE.PlaneGeometry( 10, 10 );
-               var floorMaterial = new THREE.MeshPhongMaterial();
                
-               texture = THREE.ImageUtils.loadTexture('terrain.jpg', {}, function() {
-                  renderScene();
-               });
-
-               floorMaterial.map = texture;
-               console.log(floorMaterial);
-               var floor = new THREE.Mesh( floorGeometry, floorMaterial );
-               floor.rotateOnAxis(new THREE.Vector3(1,0, 0).normalize(), -1.57079633);
-               scene.add( floor );
+               
         
-               for (var i = 0; i < 2000; i++) {
+               for (var i = 0; i < 1000; i++) {
 
                     var sphereGeometry = new THREE.SphereGeometry(0.01, 0.01, 0.01); 
 
@@ -186,6 +247,9 @@
                     
                }
 
+
+               
+
            } 
 
            function addLights() {
@@ -206,16 +270,21 @@
 
                for(var i = 0; i<particles.length; i++) {
 
-                    if (particles[i].position.y > -5) {
+                    if (particles[i].position.y > 0) {
                       particles[i].position.y = particles[i].position.y - 0.03
                       if (particles[i].position.x > -6 && particles[i].position.x < 6) {
                         particles[i].position.x = particles[i].position.x + movementPaths[i];
                       } else {
                         particles[i].position.x = Math.random() * 5 * plusMinusRandomizer();
                       }
-                    } else {
-                      particles[i].position.y = 4.5;
+                    } else if(particles[i].position.y < 0){
+                      this.context.fillStyle = 'rgba(192, 192, 192, 1)';
+                      this.context.fillRect(particles[i].position.x + Math.random() - 0.5, particles[i].position.y + Math.random() - 0.5, 0.5, 0.5);
+
+                      particles[i].position.y = Math.random() * 2 + 6;
                       particles[i].position.x = Math.random() * 6 * plusMinusRandomizer();
+
+                      this.snowMaterial.needsUpdate = true;
                     }
                     
                     // particle.updatePhysics(); 
