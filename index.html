@@ -24,20 +24,97 @@
 			a {
 				color: #fff;
 			}
+
+			 /* The switch - the box around the slider */
+			.switch {
+			  position: relative;
+			  display: inline-block;
+			  width: 60px;
+			  height: 34px;
+			}
+
+			/* Hide default HTML checkbox */
+			.switch input {display:none;}
+
+			/* The slider */
+			.slider {
+			  position: absolute;
+			  cursor: pointer;
+			  top: 0;
+			  left: 0;
+			  right: 0;
+			  bottom: 0;
+			  background-color: #ccc;
+			  -webkit-transition: .4s;
+			  transition: .4s;
+			}
+
+			.slider:before {
+			  position: absolute;
+			  content: "";
+			  height: 26px;
+			  width: 26px;
+			  left: 4px;
+			  bottom: 4px;
+			  background-color: white;
+			  -webkit-transition: .4s;
+			  transition: .4s;
+			}
+
+			input:checked + .slider {
+			  background-color: #2196F3;
+			}
+
+			input:focus + .slider {
+			  box-shadow: 0 0 1px #2196F3;
+			}
+
+			input:checked + .slider:before {
+			  -webkit-transform: translateX(26px);
+			  -ms-transform: translateX(26px);
+			  transform: translateX(26px);
+			}
+
+			/* Rounded sliders */
+			.slider.round {
+			  border-radius: 34px;
+			}
+
+			.slider.round:before {
+			  border-radius: 50%;
+			} 
 		</style>
 	</head>
 
 	<body>
 		<div id = "controls">
             <input type="range" min="0" max="10" value="0" step="0.1" id="slider" orient="horizontal" style="position:absolute; top: 10px;">
+            <h4 style="position:absolute; top: -12px; left:180px;">Snow speed</h4>
             <input type="range" min="0" max="10" value="0" step="0.1" id="slider2" orient="horizontal" style="position:absolute; top: 40px;">
+            <h4 style="position:absolute; top: 18px; left:180px;">Light intensity</h4>
             <button type="button" onclick="reset()" style="position:absolute; top: 80px; left: 10px;">Reset canvas</button>
             <button type="button" onclick="setRocks()" style="position:absolute; top: 120px; left: 10px;">Rocks</button>
             <button type="button" onclick="setTerrain()" style="position:absolute; top: 120px; left: 70px;">Terrain</button>
-            <input type="range" min="0" max="1" value="0" step="0.1" id="slider3" orient="horizontal" style="position:absolute; top: 160px;">
-            <button type="button" onclick="whiteSnowflakes()" style="position:absolute; top: 200px; left: 10px;">White</button>
-            <button type="button" onclick="colorSnowflakes()" style="position:absolute; top: 200px; left: 70px;">Colorful</button>
-            <input type="range" min="0.5" max="10" value="0" step="0.5" id="slider4" orient="horizontal" style="position:absolute; top: 230px;">
+            <h4 style="position:absolute; top: 100px; left:180px;">Choose texture</h4>
+
+            <input type="checkbox" name="isBump" style="position:absolute; top: 160px; left: 8px;">
+            <h4 style="position:absolute; top: 138px; left:28px;">Bump map enabled</h4>
+            <input type="range" min="0.1" max="1" value="0" step="0.1" id="slider3" orient="horizontal" style="position:absolute; top: 190px;">
+            <h4 style="position:absolute; top: 168px; left:180px;">Bump scale</h4>
+
+			<input type="checkbox" name="isNormal" style="position:absolute; top: 220px; left: 8px;">
+            <h4 style="position:absolute; top: 198px; left:28px;">Normal map enabled</h4>
+            <input type="range" min="0.1" max="1" value="0" step="0.1" id="normalSlider" orient="horizontal" style="position:absolute; top: 250px;">
+            <h4 style="position:absolute; top: 228px; left:180px;">Normal scale</h4>
+
+            <input type="checkbox" name="isDisplaced" style="position:absolute; top: 280px; left: 8px;">
+            <h4 style="position:absolute; top: 258px; left:28px;">Displacement map enabled</h4>
+            <input type="range" min="0.1" max="1" value="0" step="0.1" id="displacedSlider" orient="horizontal" style="position:absolute; top: 310px;">
+            <h4 style="position:absolute; top: 288px; left:180px;">Displacement scale</h4>
+
+            <button type="button" onclick="whiteSnowflakes()" style="position:absolute; top: 340px; left: 10px;">White</button>
+            <button type="button" onclick="colorSnowflakes()" style="position:absolute; top: 340px; left: 70px;">Colorful</button>
+            <input type="range" min="0.5" max="10" value="0" step="0.5" id="slider4" orient="horizontal" style="position:absolute; top: 370px;">
 
 
          </div>
@@ -95,6 +172,8 @@
 
 		var snowMaterial, snow, floorMaterial;
 
+		var currentTexture, currentBumpMap, currentNormalMap, currentDisplacementMap;
+
 		var particles = 20000;
 		var SNOW_FALL_SPEED = 2;
 		var LIGHT_INTESITY;
@@ -139,6 +218,21 @@
 
 			var slider4 = document.getElementById("slider4");
 			slider4.addEventListener("input", changeSize);
+
+			var bumpCheckbox = document.querySelector("input[name=isBump]");
+			bumpCheckbox.onchange = toggleBump;
+
+			var normalCheckbox = document.querySelector("input[name=isNormal]");
+			normalCheckbox.onchange = toggleNormal;
+
+			var normalSlider = document.getElementById("normalSlider");
+			normalSlider.addEventListener("input", changeNormal);
+
+			var displacedCheckbox = document.querySelector("input[name=isDisplaced]");
+			displacedCheckbox.onchange = toggleDisplaced;
+
+			var displacedSlider = document.getElementById("displacedSlider");
+			displacedSlider.addEventListener("input", changeDisplaced);
 		}
 
 		function createSnowCanvas(){
@@ -181,14 +275,22 @@
 			var floorGeometry = new THREE.PlaneGeometry( 10, 10 , 256, 256);
             floorGeometry.computeFaceNormals();
             floorGeometry.computeVertexNormals();
-			var bmap =  THREE.ImageUtils.loadTexture("terrain-map.png", {}, function(){});
-			var smap =  THREE.ImageUtils.loadTexture("terrain.jpg", {}, function(){});
+			currentBumpMap =  THREE.ImageUtils.loadTexture("terrain-map2.jpg", {}, function(){});
+			currentTexture =  THREE.ImageUtils.loadTexture("terrain2.jpg", {}, function(){});
+			currentNormalMap =  THREE.ImageUtils.loadTexture("terrain-normal-map.png", {}, function(){});
+			currentDisplacementMap =  THREE.ImageUtils.loadTexture("terrain-displacement-map.png", {}, function(){});
+			document.querySelector("input[name=isBump]").checked = true;
+			document.querySelector("input[name=isNormal]").checked = true;
+			document.querySelector("input[name=isDisplaced]").checked = true;
 
 			floorMaterial = new THREE.MeshPhongMaterial({
-				map: smap,
-				bumpMap: bmap,
+				map: currentTexture,
+				bumpMap: currentBumpMap,
+				displacementMap: currentDisplacementMap,
 				shading: THREE.SmoothShading,
 				bumpScale: 0.1,
+				normalScale: new THREE.Vector3( 0.1, 0.1 ),
+				displacementScale: 0.1,
 				shininess  :  20,
 				ambient: 0x404040
 			});
@@ -351,6 +453,40 @@
 
 
 		// -- HELPER FUNCTIONS --
+		function toggleBump() {
+			if(this.checked) {
+			    floorMaterial.bumpMap = currentBumpMap;
+			    floorMaterial.needsUpdate = true;
+
+			  } else {
+			    floorMaterial.bumpMap = null;
+			    floorMaterial.needsUpdate = true;
+			  }
+			}
+
+			function toggleNormal() {
+			if(this.checked) {
+			    floorMaterial.normalMap = currentNormalMap;
+			    floorMaterial.needsUpdate = true;
+
+			  } else {
+			    floorMaterial.normalMap = null;
+			    floorMaterial.needsUpdate = true;
+			  }
+			}
+
+			function toggleDisplaced() {
+			if(this.checked) {
+			    floorMaterial.displacementMap = currentDisplacementMap;
+			    floorMaterial.needsUpdate = true;
+
+			  } else {
+			    floorMaterial.displacementMap = null;
+			    floorMaterial.needsUpdate = true;
+			  }
+			}
+
+
 		function colorSnowflakes(){
 			var colors = geometry.attributes.customColor.array;
 			var color = new THREE.Color();
@@ -376,17 +512,19 @@
 		}
 
 		function setRocks(){
-			var bmap =  THREE.ImageUtils.loadTexture("terrain-map.png", {}, function(){});
-			var smap =  THREE.ImageUtils.loadTexture("terrain.jpg", {}, function(){});
-			floorMaterial.map = smap;
-			floorMaterial.bmap = bmap;
+			currentBumpMap  =  THREE.ImageUtils.loadTexture("terrain-map.png", {}, function(){});
+			currentTexture =  THREE.ImageUtils.loadTexture("terrain.jpg", {}, function(){});
+			floorMaterial.map = currentTexture;
+			floorMaterial.bmap = currentBumpMap;
+			document.querySelector("input[name=isBump]").checked = true;
 		}
 
 		function setTerrain(){
-			var bmap =  THREE.ImageUtils.loadTexture("terrain-map2.jpg", {}, function(){});
-			var smap =  THREE.ImageUtils.loadTexture("terrain2.jpg", {}, function(){});
-			floorMaterial.map = smap;
-			floorMaterial.bmap = bmap;
+			currentBumpMap =  THREE.ImageUtils.loadTexture("terrain-map2.jpg", {}, function(){});
+			currentTexture =  THREE.ImageUtils.loadTexture("terrain2.jpg", {}, function(){});
+			floorMaterial.map = currentTexture;
+			floorMaterial.bmap = currentBumpMap;
+			document.querySelector("input[name=isBump]").checked = true;
 
 		}
 
@@ -411,6 +549,16 @@
 		function changeBumpMapping(e){
 			var target = (e.target) ? e.target : e.srcElement;
 			floorMaterial.bumpScale = target.value;
+		}
+
+		function changeNormal(e){
+			var target = (e.target) ? e.target : e.srcElement;
+			floorMaterial.normalScale = new THREE.Vector3( target.value, target.value );;
+		}
+
+		function changeDisplaced(e){
+			var target = (e.target) ? e.target : e.srcElement;
+			floorMaterial.displacementScale = target.value;
 		}
 
 		function changeSnowSpeed(e){
