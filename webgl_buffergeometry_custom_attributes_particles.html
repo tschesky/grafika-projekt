@@ -28,9 +28,20 @@
 	</head>
 
 	<body>
-		<div id="container"></div>
-		<div id="info"><a href="http://threejs.org" target="_blank">three.js</a> webgl - buffergeometry custom attributes - particles</div>
+		<div id = "controls">
+            <input type="range" min="0" max="10" value="0" step="0.1" id="slider" orient="horizontal" style="position:absolute; top: 10px;">
+            <input type="range" min="0" max="10" value="0" step="0.1" id="slider2" orient="horizontal" style="position:absolute; top: 40px;">
+            <button type="button" onclick="reset()" style="position:absolute; top: 80px; left: 10px;">Reset canvas</button>
+            <button type="button" onclick="setRocks()" style="position:absolute; top: 120px; left: 10px;">Rocks</button>
+            <button type="button" onclick="setTerrain()" style="position:absolute; top: 120px; left: 70px;">Terrain</button>
+            <input type="range" min="0" max="1" value="0" step="0.1" id="slider3" orient="horizontal" style="position:absolute; top: 160px;">
+            <button type="button" onclick="whiteSnowflakes()" style="position:absolute; top: 200px; left: 10px;">White</button>
+            <button type="button" onclick="colorSnowflakes()" style="position:absolute; top: 200px; left: 70px;">Colorful</button>
+            <input type="range" min="0.5" max="10" value="0" step="0.5" id="slider4" orient="horizontal" style="position:absolute; top: 230px;">
 
+
+         </div>
+		<div id="container"></div>
 		<script src="three.min.js"></script>
 		<script src="Detector.js"></script>
 		<script src="OrbitControls.js"></script>
@@ -78,18 +89,22 @@
 
 		if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
 
-		var renderer, scene, camera, stats;
+		var renderer, scene, camera, stats, context, dirLight;
 
 		var particleSystem, uniforms, geometry;
 
-		var context;
+		var snowMaterial, snow, floorMaterial;
 
-		var snowMaterial, snow;
-
-		var particles = 3000;
+		var particles = 20000;
+		var SNOW_FALL_SPEED = 2;
+		var LIGHT_INTESITY;
+		var SNOWY_AREA = 15;
+		var SNOWFLAKE_SIZE = 2;
 
 		var WIDTH = window.innerWidth;
 		var HEIGHT = window.innerHeight;
+
+		var movementPaths = [];
 
 		init();
 		animate();
@@ -103,8 +118,27 @@
 			createSnowCanvas();
 			createParticleSystem();
 			createAndSetCamera();
+			prepareControlPanel();
+
 			createRenderer();
 			window.addEventListener( 'resize', onWindowResize, false );
+		}
+
+		function prepareControlPanel(){
+			var slider = document.getElementById("slider");
+			slider.addEventListener("input", changeSnowSpeed);
+			SNOW_FALL_SPEED = slider.value / 5;
+
+			var slider2 = document.getElementById("slider2");
+			slider2.addEventListener("input", changeLightIntensity);
+			LIGHT_INTESITY = slider2.value / 2;
+			dirLight.intensity = LIGHT_INTESITY;
+
+			var slider3 = document.getElementById("slider3");
+			slider3.addEventListener("input", changeBumpMapping);
+
+			var slider4 = document.getElementById("slider4");
+			slider4.addEventListener("input", changeSize);
 		}
 
 		function createSnowCanvas(){
@@ -138,7 +172,7 @@
 		}
 
 		function createLight(){
-			var dirLight = new THREE.DirectionalLight(0xffffff, 1);
+			dirLight = new THREE.DirectionalLight(0xffffff, 1);
 			dirLight.position.set(100, 100, 50);
 			scene.add(dirLight);
 		}
@@ -150,7 +184,7 @@
 			var bmap =  THREE.ImageUtils.loadTexture("terrain-map.png", {}, function(){});
 			var smap =  THREE.ImageUtils.loadTexture("terrain.jpg", {}, function(){});
 
-			var floorMaterial = new THREE.MeshPhongMaterial({
+			floorMaterial = new THREE.MeshPhongMaterial({
 				map: smap,
 				bumpMap: bmap,
 				shading: THREE.SmoothShading,
@@ -241,9 +275,9 @@
 
 			for ( var i = 0, i3 = 0; i < particles; i ++, i3 += 3 ) {
 
-				positions[ i3 + 0 ] = (Math.random() - 0.5) * 10;
-				positions[ i3 + 1 ] = Math.random() * 10;
-				positions[ i3 + 2 ] = (Math.random() - 0.5) * 10;
+				positions[ i3 + 0 ] = (Math.random() - 0.5) * SNOWY_AREA;
+				positions[ i3 + 1 ] = (Math.random() - 0.5) * SNOWY_AREA;
+				positions[ i3 + 2 ] = (Math.random() - 0.5) * SNOWY_AREA;
 
 				color.setHSL( i / particles, 1.0, 0.5 );
 
@@ -251,8 +285,8 @@
 				colors[ i3 + 1 ] = color.g;
 				colors[ i3 + 2 ] = color.b;
 
-				sizes[ i ] = Math.random() / 5;
-
+				sizes[ i ] = Math.random() / SNOWFLAKE_SIZE;
+				movementPaths.push(Math.random()/100 * plusMinusRandomizer());
 			}
 
 			geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
@@ -292,22 +326,117 @@
 			var positions = geometry.attributes.position.array;
 
 			for ( var i = 0, i3 = 1; i < particles; i++, i3 += 3 ) {
-
-				// sizes[ i ] = ( 1 + Math.sin( 0.1 * i + time ) / 2 );
-				positions[ i3 + 1 ] -= Math.random() * 0.1;
-				if(positions[ i3 + 1 ] < 0 ){
-					positions[ i3 + 0 ] = (Math.random() - 0.5) * 10;
-					positions[ i3 + 1 ] = 10;
-					positions[ i3 + 2 ] = (Math.random() - 0.5) * 10;
+				if(SNOW_FALL_SPEED != 0){
+					// sizes[ i ] = ( 1 + Math.sin( 0.1 * i + time ) / 2 );
+					positions[ i3 + 0 ] = positions[ i3 + 0 ]  + movementPaths[i];
+					positions[ i3 + 1 ] -= Math.random() * SNOW_FALL_SPEED;
+					var coordinates = globalCoordsToTextureCoords(positions[ i3 + 0 ], positions[ i3 + 1 ], positions[ i3 + 2 ]);
+					if(positions[ i3 + 1 ] < 0 ){
+						this.context.fillStyle = 'rgba(256, 256, 256, 1)';
+						this.context.fillRect(coordinates.x + Math.random() - 0.5, coordinates.y + Math.random() - 0.5, 0.5, 0.5);
+						positions[ i3 + 0 ] = (Math.random() - 0.5) * SNOWY_AREA;
+						positions[ i3 + 1 ] = (Math.random()  * 2) + SNOWY_AREA;
+						positions[ i3 + 2 ] = (Math.random() - 0.5) * SNOWY_AREA;
+					}
 				}
 
 			}
 
 			//geometry.attributes.size.needsUpdate = true;
 			geometry.attributes.position.needsUpdate = true;
-
+			this.snowMaterial.map.needsUpdate = true;
 			renderer.render( scene, camera );
 
+		}
+
+
+		// -- HELPER FUNCTIONS --
+		function colorSnowflakes(){
+			var colors = geometry.attributes.customColor.array;
+			var color = new THREE.Color();
+			for(var i = 0, i3 = 0; i < particles; i++, i3 += 3){
+				color.setHSL( i / particles, 1.0, 0.5 );
+				colors[ i3 + 0 ] = color.r;
+				colors[ i3 + 1 ] = color.g;
+				colors[ i3 + 2 ] = color.b;
+			}
+			geometry.attributes.customColor.needsUpdate = true;
+		}
+
+		function whiteSnowflakes(){
+			var colors = geometry.attributes.customColor.array;
+			var color = new THREE.Color();
+			color.setHSL(360, 1.0, 1.0);
+			for(var i = 0, i3 = 0; i < particles; i++, i3 += 3){
+				colors[ i3 + 0 ] = color.r;
+				colors[ i3 + 1 ] = color.g;
+				colors[ i3 + 2 ] = color.b;
+			}
+			geometry.attributes.customColor.needsUpdate = true;
+		}
+
+		function setRocks(){
+			var bmap =  THREE.ImageUtils.loadTexture("terrain-map.png", {}, function(){});
+			var smap =  THREE.ImageUtils.loadTexture("terrain.jpg", {}, function(){});
+			floorMaterial.map = smap;
+			floorMaterial.bmap = bmap;
+		}
+
+		function setTerrain(){
+			var bmap =  THREE.ImageUtils.loadTexture("terrain-map2.jpg", {}, function(){});
+			var smap =  THREE.ImageUtils.loadTexture("terrain2.jpg", {}, function(){});
+			floorMaterial.map = smap;
+			floorMaterial.bmap = bmap;
+
+		}
+
+		function reset() {
+			context.clearRect(0, 0, 10, 10);
+		}
+
+		function changeSize(e){
+			var target = (e.target) ? e.target : e.srcElement;
+			SNOWFLAKE_SIZE = target.value;
+
+			var sizes = geometry.attributes.size.array;
+
+			for(var i = 0; i < particles; i++){
+				sizes[ i ] = Math.random() / SNOWFLAKE_SIZE;
+			}
+
+			geometry.attributes.size.needsUpdate = true;
+		}
+
+
+		function changeBumpMapping(e){
+			var target = (e.target) ? e.target : e.srcElement;
+			floorMaterial.bumpScale = target.value;
+		}
+
+		function changeSnowSpeed(e){
+			var target = (e.target) ? e.target : e.srcElement;
+			SNOW_FALL_SPEED = (target.value / 5);
+		}
+
+		function changeLightIntensity(e){
+			var target = (e.target) ? e.target : e.srcElement;
+			LIGHT_INTESITY = target.value / 2;
+			dirLight.intensity = LIGHT_INTESITY;
+		}
+
+		function globalCoordsToTextureCoords(argx, argy, argz) {
+			var px = Math.floor(((argx + 0.5 * 10) / 10) * 256);
+			var py = Math.floor(((argz + 0.5 * 10) / 10) * 256);
+			return { x: px, y: py };
+		}
+
+		function plusMinusRandomizer() {
+			var rand = Math.random();
+			if (rand > 0.5) {
+				return 1;
+			} else {
+				 -1;
+			}
 		}
 
 	</script>
